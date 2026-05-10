@@ -60,7 +60,7 @@
         <div class="panel-heading">
           <div>
             <h2>Customize</h2>
-            <p class="panel-note">The model-facing controls stay here. Private tokens and bridge setup live in Developer Setup.</p>
+            <p class="panel-note">Model setup links can save style, content, media, and test updates. Publish tokens and bridge setup live in Developer Setup.</p>
           </div>
           <button id="saveSettings" type="button">Save Settings</button>
         </div>
@@ -284,7 +284,7 @@
           <div class="panel-heading">
             <div>
               <h2>Channel Admin</h2>
-              <p class="panel-note">Private setup for MFC staff or trusted tooling. Keep the publish token out of model-facing instructions.</p>
+              <p class="panel-note">Private setup for MFC staff or trusted tooling. Give models the setup URL, not the publish token.</p>
             </div>
             <button id="createChannel" type="button">New Channel</button>
           </div>
@@ -293,8 +293,19 @@
             <input id="channelId" type="text" autocomplete="off" spellcheck="false">
           </label>
           <label>
+            Model Setup Token
+            <input id="setupToken" type="password" autocomplete="off" spellcheck="false">
+          </label>
+          <label>
             Publish Token
             <input id="publishToken" type="password" autocomplete="off" spellcheck="false">
+          </label>
+          <label class="copy-field">
+            Model setup URL
+            <div class="copy-control">
+              <input id="modelSetupUrl" type="text" readonly>
+              <button id="copyModelSetup" type="button">Copy Setup URL</button>
+            </div>
           </label>
           <div class="button-row">
             <button id="loadChannel" type="button">Load Channel</button>
@@ -326,7 +337,8 @@
           <h2>API Boundary</h2>
           <ul class="dev-list">
             <li>OBS URL is public and safe for model setup.</li>
-            <li>Publish token stays private and only powers settings, media, and now-playing updates.</li>
+            <li>Model setup token can save settings, media, and test overlay updates.</li>
+            <li>Publish token stays private and only powers now-playing bridge updates.</li>
             <li>Production channel creation should sit behind MFC admin auth.</li>
           </ul>
         </section>

@@ -6,9 +6,9 @@ import path from "node:path";
 import { createServer } from "../src/server.mjs";
 import { extractLinkPreview } from "../src/link_preview.mjs";
 
-async function withRelay(fn) {
+async function withRelay(fn, options = {}) {
   const dataDir = await mkdtemp(path.join(os.tmpdir(), "mfc-relay-"));
-  const server = createServer({ dataDir, baseURL: "https://relay.example.test" });
+  const server = createServer({ dataDir, baseURL: "https://relay.example.test", ...options });
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
   const address = server.address();
   const baseURL = `http://127.0.0.1:${address.port}`;
@@ -43,9 +43,24 @@ test("creates a channel and exposes hosted URLs", async () => {
     assert.equal(response.status, 201);
     assert.ok(body.id);
     assert.ok(body.publish_token);
+    assert.ok(body.settings_token);
     assert.equal(body.settings.display_name, "MFC Room");
     assert.equal(body.urls.overlay, `https://relay.example.test/overlay/${body.id}`);
     assert.equal(body.urls.mfc_browser_source, `https://relay.example.test/overlay/${body.id}?show_paused=1`);
+    assert.equal(body.urls.model_setup.includes(`channel=${body.id}`), true);
+    assert.equal(body.urls.model_setup.includes("setup_token="), true);
+  });
+});
+
+test("rejects invalid requested channel IDs instead of silently renaming them", async () => {
+  await withRelay(async ({ baseURL }) => {
+    const rejected = await requestJSON(`${baseURL}/api/channels`, {
+      method: "POST",
+      body: JSON.stringify({ id: "!!!", display_name: "Bad Room" }),
+    });
+
+    assert.equal(rejected.response.status, 400);
+    assert.match(rejected.body.error, /Channel ID/);
   });
 });
 
@@ -67,6 +82,47 @@ test("requires a publish token before accepting now-playing updates", async () =
     });
 
     assert.equal(rejected.response.status, 401);
+  });
+});
+
+test("lets setup tokens update model-facing settings but not now-playing data", async () => {
+  await withRelay(async ({ baseURL }) => {
+    const created = await requestJSON(`${baseURL}/api/channels`, { method: "POST", body: "{}" });
+    const channelId = created.body.id;
+    const setupToken = created.body.settings_token;
+
+    const patched = await requestJSON(`${baseURL}/api/channels/${channelId}/settings`, {
+      method: "PATCH",
+      headers: { authorization: `Bearer ${setupToken}` },
+      body: JSON.stringify({
+        display_name: "Model Controlled",
+        preset: "clean-luxe",
+      }),
+    });
+
+    assert.equal(patched.response.status, 200);
+    assert.equal(patched.body.display_name, "Model Controlled");
+    assert.equal(patched.body.preset, "clean-luxe");
+
+    const testTrack = await requestJSON(`${baseURL}/api/channels/${channelId}/test`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${setupToken}` },
+    });
+    assert.equal(testTrack.response.status, 202);
+
+    const nowPlaying = await requestJSON(`${baseURL}/api/channels/${channelId}/now-playing`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${setupToken}` },
+      body: JSON.stringify({
+        track: {
+          available: true,
+          state: "playing",
+          title: "Should not publish",
+        },
+      }),
+    });
+
+    assert.equal(nowPlaying.response.status, 401);
   });
 });
 
@@ -241,6 +297,62 @@ test("uploads and serves local media assets for ad previews", async () => {
     assert.equal(media.headers.get("content-type"), "video/mp4");
     assert.equal(await media.text(), "fake mp4 bytes");
   });
+});
+
+test("admin endpoints list, rotate, and delete channels without exposing tokens in listings", async () => {
+  await withRelay(async ({ baseURL }) => {
+    const admin = "admin-secret";
+    const rejected = await requestJSON(`${baseURL}/api/channels`, { method: "GET" });
+    assert.equal(rejected.response.status, 401);
+
+    const created = await requestJSON(`${baseURL}/api/channels`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${admin}` },
+      body: JSON.stringify({ id: "model-one", display_name: "Model One" }),
+    });
+    assert.equal(created.response.status, 201);
+
+    const listed = await requestJSON(`${baseURL}/api/channels`, {
+      method: "GET",
+      headers: { authorization: `Bearer ${admin}` },
+    });
+    assert.equal(listed.response.status, 200);
+    assert.equal(listed.body.channels.length, 1);
+    assert.equal(listed.body.channels[0].id, "model-one");
+    assert.equal(Object.hasOwn(listed.body.channels[0], "publish_token"), false);
+    assert.equal(Object.hasOwn(listed.body.channels[0], "settings_token"), false);
+
+    const rotatedPublish = await requestJSON(`${baseURL}/api/channels/model-one/rotate-token`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${admin}` },
+    });
+    assert.equal(rotatedPublish.response.status, 200);
+    assert.notEqual(rotatedPublish.body.publish_token, created.body.publish_token);
+
+    const oldPublishRejected = await requestJSON(`${baseURL}/api/channels/model-one/now-playing`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${created.body.publish_token}` },
+      body: JSON.stringify({ track: { available: true, state: "playing", title: "Old" } }),
+    });
+    assert.equal(oldPublishRejected.response.status, 401);
+
+    const rotatedSetup = await requestJSON(`${baseURL}/api/channels/model-one/rotate-setup-token`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${admin}` },
+    });
+    assert.equal(rotatedSetup.response.status, 200);
+    assert.notEqual(rotatedSetup.body.settings_token, created.body.settings_token);
+    assert.equal(rotatedSetup.body.urls.model_setup.includes("setup_token="), true);
+
+    const deleted = await requestJSON(`${baseURL}/api/channels/model-one`, {
+      method: "DELETE",
+      headers: { authorization: `Bearer ${admin}` },
+    });
+    assert.equal(deleted.response.status, 200);
+
+    const missing = await requestJSON(`${baseURL}/api/channels/model-one`);
+    assert.equal(missing.response.status, 404);
+  }, { adminKey: "admin-secret" });
 });
 
 test("extracts MFC share link preview metadata from public album HTML", () => {

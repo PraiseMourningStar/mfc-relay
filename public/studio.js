@@ -1,5 +1,8 @@
+const initialParams = new URLSearchParams(location.search);
+
 const state = {
-  channelId: localStorage.getItem("mfcRelay.channelId") || "",
+  channelId: initialParams.get("channel") || localStorage.getItem("mfcRelay.channelId") || "",
+  setupToken: initialParams.get("setup_token") || localStorage.getItem("mfcRelay.setupToken") || "",
   publishToken: localStorage.getItem("mfcRelay.publishToken") || "",
   mode: location.hash === "#developer" ? "developer" : "model",
   settings: null,
@@ -173,6 +176,9 @@ const AD_TYPES = [
 // ─── Field references ──────────────────────────────────────────────
 const fields = {
   channelId: $("channelId"),
+  setupToken: $("setupToken"),
+  modelSetupUrl: $("modelSetupUrl"),
+  copyModelSetup: $("copyModelSetup"),
   publishToken: $("publishToken"),
   copyOverlay: $("copyOverlay"),
   modelChannelLabel: $("modelChannelLabel"),
@@ -249,15 +255,20 @@ function setMode(mode, persist = true) {
   }
 }
 
-function authHeaders() {
+function setupAuthToken() {
+  return state.setupToken || state.publishToken;
+}
+
+function setupAuthHeaders() {
   return {
     "content-type": "application/json",
-    "authorization": `Bearer ${state.publishToken}`,
+    "authorization": `Bearer ${setupAuthToken()}`,
   };
 }
 
 function persistKeys() {
   localStorage.setItem("mfcRelay.channelId", state.channelId);
+  localStorage.setItem("mfcRelay.setupToken", state.setupToken);
   localStorage.setItem("mfcRelay.publishToken", state.publishToken);
 }
 
@@ -274,21 +285,37 @@ function bridgeCommand() {
   ].join(" \\\n  ");
 }
 
+function modelSetupURL() {
+  if (!state.channelId || !state.setupToken) {
+    return "";
+  }
+
+  const params = new URLSearchParams({
+    channel: state.channelId,
+    setup_token: state.setupToken,
+  });
+  return `${location.origin}/?${params.toString()}`;
+}
+
 function updateURLs() {
   if (!state.channelId) {
     fields.overlayUrl.value = "";
     fields.embedSnippet.value = "";
     fields.bridgeCommand.textContent = "";
+    fields.modelSetupUrl.value = "";
     fields.copyOverlay.disabled = true;
+    fields.copyModelSetup.disabled = true;
     fields.modelChannelLabel.textContent = "No channel loaded";
     fields.preview.removeAttribute("src");
     return;
   }
 
   fields.overlayUrl.value = `${overlayURL()}?show_paused=1`;
+  fields.modelSetupUrl.value = modelSetupURL();
   fields.embedSnippet.value = `<script src="${location.origin}/embed.js?channel=${state.channelId}" data-height="180"></script>`;
   fields.bridgeCommand.textContent = state.publishToken ? bridgeCommand() : "";
   fields.copyOverlay.disabled = false;
+  fields.copyModelSetup.disabled = !fields.modelSetupUrl.value;
   fields.modelChannelLabel.textContent = `Channel ${state.channelId}`;
   fields.preview.src = `${overlayURL()}?show_paused=1&preview=${Date.now()}`;
 }
@@ -836,6 +863,7 @@ function applyPreset() {
 // ─── Network ───────────────────────────────────────────────────────
 async function loadChannel() {
   state.channelId = fields.channelId.value.trim();
+  state.setupToken = fields.setupToken.value.trim();
   state.publishToken = fields.publishToken.value.trim();
   persistKeys();
   updateURLs();
@@ -869,8 +897,10 @@ async function createChannel() {
   }
 
   state.channelId = payload.id;
+  state.setupToken = payload.settings_token || "";
   state.publishToken = payload.publish_token;
   fields.channelId.value = state.channelId;
+  fields.setupToken.value = state.setupToken;
   fields.publishToken.value = state.publishToken;
   persistKeys();
   applySettings(payload.settings);
@@ -880,6 +910,7 @@ async function createChannel() {
 
 async function saveSettings() {
   state.channelId = fields.channelId.value.trim();
+  state.setupToken = fields.setupToken.value.trim();
   state.publishToken = fields.publishToken.value.trim();
   persistKeys();
 
@@ -888,14 +919,14 @@ async function saveSettings() {
     return;
   }
 
-  if (!state.publishToken) {
-    setStatus("Open Developer Setup and load the publish token before saving.");
+  if (!setupAuthToken()) {
+    setStatus("Open a model setup link or load the setup token before saving.");
     return;
   }
 
   const response = await fetch(`/api/channels/${encodeURIComponent(state.channelId)}/settings`, {
     method: "PATCH",
-    headers: authHeaders(),
+    headers: setupAuthHeaders(),
     body: JSON.stringify(readSettings()),
   });
   const payload = await response.json();
@@ -911,6 +942,7 @@ async function saveSettings() {
 
 async function sendTestTrack() {
   state.channelId = fields.channelId.value.trim();
+  state.setupToken = fields.setupToken.value.trim();
   state.publishToken = fields.publishToken.value.trim();
   persistKeys();
 
@@ -919,14 +951,14 @@ async function sendTestTrack() {
     return;
   }
 
-  if (!state.publishToken) {
-    setStatus("Open Developer Setup and load the publish token before testing.");
+  if (!setupAuthToken()) {
+    setStatus("Open a model setup link or load the setup token before testing.");
     return;
   }
 
   const response = await fetch(`/api/channels/${encodeURIComponent(state.channelId)}/test`, {
     method: "POST",
-    headers: authHeaders(),
+    headers: setupAuthHeaders(),
   });
   const payload = await response.json();
   if (!response.ok) {
@@ -949,6 +981,7 @@ function fileToDataBase64(file) {
 
 async function uploadAdPreview() {
   state.channelId = fields.channelId.value.trim();
+  state.setupToken = fields.setupToken.value.trim();
   state.publishToken = fields.publishToken.value.trim();
   persistKeys();
 
@@ -958,8 +991,8 @@ async function uploadAdPreview() {
     return;
   }
 
-  if (!state.publishToken) {
-    setStatus("Open Developer Setup and load the publish token before uploading.");
+  if (!setupAuthToken()) {
+    setStatus("Open a model setup link or load the setup token before uploading.");
     return;
   }
   if (!file) {
@@ -970,7 +1003,7 @@ async function uploadAdPreview() {
   setStatus("Uploading preview...");
   const response = await fetch(`/api/channels/${encodeURIComponent(state.channelId)}/media`, {
     method: "POST",
-    headers: authHeaders(),
+    headers: setupAuthHeaders(),
     body: JSON.stringify({
       mime_type: file.type,
       data_base64: await fileToDataBase64(file),
@@ -1067,6 +1100,8 @@ async function handleImportFile(event) {
     delete incoming.id;
     delete incoming.publish_token;
     delete incoming.publishToken;
+    delete incoming.settings_token;
+    delete incoming.settingsToken;
 
     applySettings({ ...DEFAULT_SETTINGS, ...incoming });
     updateURLs();
@@ -1096,6 +1131,7 @@ $("loadChannel").addEventListener("click", loadChannel);
 $("saveSettings").addEventListener("click", saveSettings);
 $("testTrack").addEventListener("click", sendTestTrack);
 $("copyOverlay").addEventListener("click", () => copyText(fields.overlayUrl.value));
+$("copyModelSetup").addEventListener("click", () => copyText(fields.modelSetupUrl.value));
 $("copyBridge").addEventListener("click", () => copyText(fields.bridgeCommand.textContent));
 fields.uploadAd.addEventListener("click", uploadAdPreview);
 fields.preset.addEventListener("change", applyPreset);
@@ -1129,10 +1165,15 @@ fields.addAd.addEventListener("click", () => {
 
 // ─── Boot ──────────────────────────────────────────────────────────
 fields.channelId.value = state.channelId;
+fields.setupToken.value = state.setupToken;
 fields.publishToken.value = state.publishToken;
 setMode(state.mode, false);
 applySettings(DEFAULT_SETTINGS);
 updateURLs();
+
+if (initialParams.has("setup_token") || initialParams.has("channel")) {
+  history.replaceState(null, "", `${location.pathname}${location.hash || ""}`);
+}
 
 if (state.channelId) {
   loadChannel().catch(() => setStatus("Could not auto-load saved channel."));

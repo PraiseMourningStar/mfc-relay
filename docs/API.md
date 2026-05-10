@@ -18,22 +18,77 @@ GET /health
 ## Private Routes
 
 ```http
+GET /api/channels
 POST /api/channels
+DELETE /api/channels/<channel-id>
+POST /api/channels/<channel-id>/rotate-token
+POST /api/channels/<channel-id>/rotate-setup-token
 POST /api/channels/<channel-id>/now-playing
 PATCH /api/channels/<channel-id>/settings
 POST /api/channels/<channel-id>/media
 POST /api/channels/<channel-id>/test
 ```
 
-Private channel mutation routes require:
+Admin lifecycle routes require:
+
+```http
+Authorization: Bearer <admin-key>
+```
+
+Now-playing publish routes require:
 
 ```http
 Authorization: Bearer <publish-token>
 ```
 
-Channel creation requires the configured `ADMIN_KEY` when present:
+Model-facing setup routes accept either the lower-privilege setup token or the publish token:
 
 ```http
+Authorization: Bearer <settings-token>
+```
+
+The setup token can update settings, upload media assets, and send test overlay updates. It cannot publish real now-playing data, create channels, delete channels, list channels, or rotate tokens.
+
+Requested channel IDs must match `^[a-z0-9_-]{1,64}$`. If `id` is omitted during channel creation, the relay generates a safe ID. If `id` is present but invalid, the relay returns `400`.
+
+## Channel Lifecycle
+
+Create channel:
+
+```http
+POST /api/channels
+Authorization: Bearer <admin-key>
+```
+
+The response returns `publish_token` for bridge/server-side music updates and `settings_token` for model-facing customization. It also returns `urls.model_setup`, which contains the setup token.
+
+List channels:
+
+```http
+GET /api/channels
+Authorization: Bearer <admin-key>
+```
+
+The list response does not include tokens.
+
+Rotate publish token:
+
+```http
+POST /api/channels/<channel-id>/rotate-token
+Authorization: Bearer <admin-key>
+```
+
+Rotate model setup token:
+
+```http
+POST /api/channels/<channel-id>/rotate-setup-token
+Authorization: Bearer <admin-key>
+```
+
+Delete channel and uploaded assets:
+
+```http
+DELETE /api/channels/<channel-id>
 Authorization: Bearer <admin-key>
 ```
 
@@ -141,7 +196,7 @@ Local ad preview uploads:
 
 ```http
 POST /api/channels/<channel-id>/media
-Authorization: Bearer <publish-token>
+Authorization: Bearer <settings-token>
 Content-Type: application/json
 ```
 

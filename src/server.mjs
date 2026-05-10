@@ -83,6 +83,24 @@ function tokenFrom(req, url) {
   return req.headers["x-mfc-relay-token"] || url.searchParams.get("token") || "";
 }
 
+function requireAdmin(req, res, url, adminKey, { allowOpen = false } = {}) {
+  if (!adminKey) {
+    if (allowOpen) {
+      return true;
+    }
+
+    json(res, 503, { error: "ADMIN_KEY must be configured for this admin route" });
+    return false;
+  }
+
+  if (tokenFrom(req, url) !== adminKey) {
+    json(res, 401, { error: "Missing or invalid admin token" });
+    return false;
+  }
+
+  return true;
+}
+
 function absoluteBaseURL(req, configuredBaseURL) {
   if (configuredBaseURL) {
     return configuredBaseURL.replace(/\/+$/, "");
@@ -195,6 +213,15 @@ function publicChannelPayload(channel, req, baseURL) {
   };
 }
 
+function modelSetupURL(channel, req, baseURL) {
+  const root = absoluteBaseURL(req, baseURL);
+  const params = new URLSearchParams({
+    channel: channel.id,
+    setup_token: channel.settings_token || "",
+  });
+  return `${root}/?${params.toString()}`;
+}
+
 export function createServer(options = {}) {
   const port = Number(options.port || process.env.PORT || 8080);
   const dataDir = options.dataDir || process.env.DATA_DIR || path.join(APP_ROOT, "data");
@@ -262,17 +289,40 @@ export function createServer(options = {}) {
         return;
       }
 
+      if (segments[0] === "api" && segments[1] === "channels" && segments.length === 2 && req.method === "GET") {
+        if (!requireAdmin(req, res, url, adminKey)) {
+          return;
+        }
+
+        const channels = await store.listChannels();
+        json(res, 200, {
+          channels: channels.map((channel) => ({
+            ...channel,
+            urls: {
+              overlay: `${absoluteBaseURL(req, baseURL)}/overlay/${channel.id}`,
+              mfc_browser_source: `${absoluteBaseURL(req, baseURL)}/overlay/${channel.id}?show_paused=1`,
+            },
+          })),
+        });
+        return;
+      }
+
       if (req.method === "POST" && pathname === "/api/channels") {
-        if (adminKey && tokenFrom(req, url) !== adminKey) {
-          json(res, 401, { error: "Missing or invalid admin token" });
+        if (!requireAdmin(req, res, url, adminKey, { allowOpen: true })) {
           return;
         }
 
         const body = await readBody(req);
         const channel = await store.createChannel(body);
+        const payload = publicChannelPayload(channel, req, baseURL);
         json(res, 201, {
-          ...publicChannelPayload(channel, req, baseURL),
+          ...payload,
+          urls: {
+            ...payload.urls,
+            model_setup: modelSetupURL(channel, req, baseURL),
+          },
           publish_token: channel.publish_token,
+          settings_token: channel.settings_token,
         });
         return;
       }
@@ -327,6 +377,47 @@ export function createServer(options = {}) {
           return;
         }
 
+        if (segments.length === 3 && req.method === "DELETE") {
+          if (!requireAdmin(req, res, url, adminKey)) {
+            return;
+          }
+
+          await store.deleteChannel(channelId);
+          json(res, 200, { ok: true, id: channel.id });
+          return;
+        }
+
+        if (segments[3] === "rotate-token" && req.method === "POST") {
+          if (!requireAdmin(req, res, url, adminKey)) {
+            return;
+          }
+
+          const updated = await store.rotatePublishToken(channelId);
+          json(res, 200, {
+            ok: true,
+            id: updated.id,
+            publish_token: updated.publish_token,
+          });
+          return;
+        }
+
+        if (segments[3] === "rotate-setup-token" && req.method === "POST") {
+          if (!requireAdmin(req, res, url, adminKey)) {
+            return;
+          }
+
+          const updated = await store.rotateSettingsToken(channelId);
+          json(res, 200, {
+            ok: true,
+            id: updated.id,
+            settings_token: updated.settings_token,
+            urls: {
+              model_setup: modelSetupURL(updated, req, baseURL),
+            },
+          });
+          return;
+        }
+
         if (segments[3] === "settings") {
           if (req.method === "GET") {
             json(res, 200, publicSettings(channel.settings));
@@ -334,8 +425,8 @@ export function createServer(options = {}) {
           }
 
           if (req.method === "PATCH") {
-            if (!store.verifyPublishToken(channel, tokenFrom(req, url))) {
-              json(res, 401, { error: "Missing or invalid publish token" });
+            if (!store.verifySettingsToken(channel, tokenFrom(req, url))) {
+              json(res, 401, { error: "Missing or invalid setup token" });
               return;
             }
 
@@ -347,8 +438,8 @@ export function createServer(options = {}) {
         }
 
         if (segments[3] === "media" && req.method === "POST") {
-          if (!store.verifyPublishToken(channel, tokenFrom(req, url))) {
-            json(res, 401, { error: "Missing or invalid publish token" });
+          if (!store.verifySettingsToken(channel, tokenFrom(req, url))) {
+            json(res, 401, { error: "Missing or invalid setup token" });
             return;
           }
 
@@ -389,8 +480,8 @@ export function createServer(options = {}) {
         }
 
         if (segments[3] === "test" && req.method === "POST") {
-          if (!store.verifyPublishToken(channel, tokenFrom(req, url))) {
-            json(res, 401, { error: "Missing or invalid publish token" });
+          if (!store.verifySettingsToken(channel, tokenFrom(req, url))) {
+            json(res, 401, { error: "Missing or invalid setup token" });
             return;
           }
 

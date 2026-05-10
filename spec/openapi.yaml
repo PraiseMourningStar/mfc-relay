@@ -12,6 +12,17 @@ paths:
         "200":
           description: Relay is healthy
   /api/channels:
+    get:
+      summary: List channels
+      security:
+        - adminBearer: []
+      responses:
+        "200":
+          description: Channel list without tokens
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChannelListResponse"
     post:
       summary: Create a channel
       security:
@@ -41,6 +52,43 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/PublicChannel"
+    delete:
+      summary: Delete a channel and uploaded assets
+      security:
+        - adminBearer: []
+      parameters:
+        - $ref: "#/components/parameters/channelId"
+      responses:
+        "200":
+          description: Channel deleted
+  /api/channels/{channelId}/rotate-token:
+    post:
+      summary: Rotate publish token
+      security:
+        - adminBearer: []
+      parameters:
+        - $ref: "#/components/parameters/channelId"
+      responses:
+        "200":
+          description: New publish token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RotatePublishTokenResponse"
+  /api/channels/{channelId}/rotate-setup-token:
+    post:
+      summary: Rotate model setup token
+      security:
+        - adminBearer: []
+      parameters:
+        - $ref: "#/components/parameters/channelId"
+      responses:
+        "200":
+          description: New setup token and model setup URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RotateSetupTokenResponse"
   /api/channels/{channelId}/now-playing:
     get:
       summary: Get current track
@@ -83,6 +131,7 @@ paths:
     patch:
       summary: Update overlay settings
       security:
+        - settingsBearer: []
         - publishBearer: []
       parameters:
         - $ref: "#/components/parameters/channelId"
@@ -99,6 +148,7 @@ paths:
     post:
       summary: Upload a local overlay media asset
       security:
+        - settingsBearer: []
         - publishBearer: []
       parameters:
         - $ref: "#/components/parameters/channelId"
@@ -131,6 +181,9 @@ components:
     publishBearer:
       type: http
       scheme: bearer
+    settingsBearer:
+      type: http
+      scheme: bearer
   parameters:
     channelId:
       name: channelId
@@ -145,6 +198,7 @@ components:
       properties:
         id:
           type: string
+          pattern: "^[a-z0-9_-]{1,64}$"
         display_name:
           type: string
         settings:
@@ -156,6 +210,52 @@ components:
           properties:
             publish_token:
               type: string
+            settings_token:
+              type: string
+    ChannelListResponse:
+      type: object
+      properties:
+        channels:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChannelSummary"
+    ChannelSummary:
+      type: object
+      properties:
+        id:
+          type: string
+        display_name:
+          type: string
+        created_at:
+          type: string
+        updated_at:
+          type: string
+        urls:
+          type: object
+          additionalProperties:
+            type: string
+    RotatePublishTokenResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        id:
+          type: string
+        publish_token:
+          type: string
+    RotateSetupTokenResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        id:
+          type: string
+        settings_token:
+          type: string
+        urls:
+          type: object
+          additionalProperties:
+            type: string
     PublicChannel:
       type: object
       properties:

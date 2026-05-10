@@ -1,13 +1,19 @@
 services:
   mfc-now-playing-relay:
     build: .
+    restart: unless-stopped
     ports:
       - "8080:8080"
     environment:
       PORT: "8080"
-      PUBLIC_BASE_URL: "https://nowplaying.mfc.example"
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:?set PUBLIC_BASE_URL in .env}
       DATA_DIR: "/app/data"
-      ADMIN_KEY: "change-me"
+      ADMIN_KEY: ${ADMIN_KEY:?set ADMIN_KEY in .env}
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
     volumes:
       - mfc-relay-data:/app/data
 

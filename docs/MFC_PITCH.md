@@ -17,7 +17,7 @@ Models already understand the MFC Alerts flow: copy a browser-source URL into OB
 - optional ad/media preview slots
 - lightweight notices such as tip prompts
 
-The model-facing experience stays simple. The technical side stays controlled: MFC hosts the relay, owns channel creation, stores publish tokens, and can populate social/content data from first-party systems.
+The model-facing experience stays simple. The technical side stays controlled: MFC hosts the relay, owns channel lifecycle, stores publish tokens, and can populate social/content data from first-party systems.
 
 ## Product Shape
 
@@ -27,12 +27,12 @@ Each model room gets one channel:
 MFC/model music + profile/content data -> private relay API -> public transparent overlay URL -> OBS browser source
 ```
 
-The overlay URL is public and safe to paste into OBS. The publish token is private and only used by trusted MFC systems or a model-side bridge.
+The overlay URL is public and safe to paste into OBS. A lower-privilege setup token can let models save style/content settings. The publish token is private and only used by trusted MFC systems or a model-side bridge.
 
 ## Model Experience
 
 1. MFC creates a channel for the model.
-2. The model opens Model Setup, sees a large live preview, and copies one OBS browser-source URL.
+2. The model opens their MFC-provided Model Setup URL, sees a large live preview, and copies one OBS browser-source URL.
 3. The model chooses a preset, accent color or rotating palette, position, scale, GIF, social handles, content/ad rotation, card size, and notice style.
 4. The overlay updates live while the model streams.
 
@@ -49,7 +49,7 @@ The relay is a small Node service with:
 - a local bridge path for now-playing sources
 - tests with `npm test`
 
-Developer Setup keeps private fields out of the model path: channel creation, publish token, bridge command, website embed snippet, settings import/export, and API boundary notes live away from the OBS copy-paste view.
+Developer Setup keeps private fields out of the model path: channel creation, setup-token handoff, publish token, bridge command, website embed snippet, settings import/export, and API boundary notes live away from the OBS copy-paste view.
 
 The implementation is intentionally source-agnostic. Spotify, Apple Music, and YouTube desktop playback should be normalized by bridge adapters into the same `Track` contract. For a production MFC launch, platform-specific adapters can sit outside the hosted relay:
 

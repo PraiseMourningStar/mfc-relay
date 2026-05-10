@@ -1,6 +1,6 @@
 # MFC Overlay Relay
 
-Self-hosted browser-source overlay infrastructure for MFC rooms. It gives each model a public overlay URL for OBS/MFC browser sources while MFC staff keep channel creation, publish tokens, and data integrations private.
+Self-hosted browser-source overlay infrastructure for MFC rooms. It gives each model a public overlay URL for OBS/MFC browser sources and a lower-privilege setup URL for customization while MFC staff keep channel creation, publish tokens, admin keys, and data integrations private.
 
 This package is web-only. It does not require a native app, OBS plugin work, or MFC client changes.
 
@@ -16,9 +16,9 @@ This package is web-only. It does not require a native app, OBS plugin work, or 
 
 ## For Models
 
-Models only need the public browser-source URL and the Model Setup controls.
+Models only need the MFC-provided setup URL and the public browser-source URL shown inside Model Setup.
 
-1. Open the studio URL that MFC provides.
+1. Open the **Model Setup URL** that MFC provides.
 2. Stay in **Model Setup**.
 3. Copy the **Browser-source URL**.
 4. Add it to OBS or the MFC browser-source tool.
@@ -31,7 +31,10 @@ Background: transparent
 ```
 
 6. Pick a preset, color, placement, scale, GIF, social links, share-album promo, ad preview, or notice style.
-7. Use **Test Overlay** to make sure the overlay appears before going live.
+7. Click **Save Settings**.
+8. Use **Test Overlay** to make sure the overlay appears before going live.
+
+Model Setup URLs include a setup token that can save overlay settings, upload model-facing media, and send a test overlay update. It cannot publish real now-playing data, create channels, delete channels, rotate tokens, or access admin APIs.
 
 Models should not receive publish tokens, bridge commands, admin keys, server logs, or private API instructions.
 
@@ -90,14 +93,32 @@ npm start
 
 With Docker:
 
+Create `.env` first:
+
+```bash
+cp .env.example .env
+printf 'PUBLIC_BASE_URL=https://nowplaying.mfc.example\nADMIN_KEY=%s\n' "$(openssl rand -hex 32)" > .env
+```
+
+Then start the service:
+
 ```bash
 docker build -t mfc-now-playing-relay .
-docker run --rm -p 8080:8080 \
+docker run -d --name mfc-now-playing-relay --restart unless-stopped -p 8080:8080 \
   -e PUBLIC_BASE_URL=https://nowplaying.mfc.example \
   -e ADMIN_KEY=<admin-channel-creation-token> \
   -v mfc-relay-data:/app/data \
   mfc-now-playing-relay
 ```
+
+Or use Compose:
+
+```bash
+docker compose up -d
+docker compose ps
+```
+
+`compose.yaml` intentionally refuses to start until `PUBLIC_BASE_URL` and `ADMIN_KEY` are set in `.env`.
 
 ### Channel Creation
 
@@ -114,11 +135,13 @@ The response includes:
 
 - `id`
 - `publish_token`
+- `settings_token`
 - `urls.overlay`
 - `urls.mfc_browser_source`
+- `urls.model_setup`
 - `urls.embed_js`
 
-The channel ID and overlay URL can be public. The publish token is private and should stay in MFC-owned systems or a trusted local bridge.
+The channel ID, public overlay URL, and model setup URL can go to the model. The setup token inside the model setup URL is lower privilege. The publish token is private and should stay in MFC-owned systems or a trusted local bridge.
 
 ### Browser Source URL
 
@@ -127,6 +150,8 @@ Give the model only this URL:
 ```text
 https://nowplaying.mfc.example/overlay/<channel-id>?show_paused=1
 ```
+
+If the model needs to customize the overlay, give them the `urls.model_setup` value returned when the channel was created. That URL contains a setup token for style/content changes only.
 
 ### Publish Now-Playing Updates
 
@@ -151,6 +176,38 @@ Content-Type: application/json
   }
 }
 ```
+
+### Channel Lifecycle
+
+List channels:
+
+```bash
+curl https://nowplaying.mfc.example/api/channels \
+  -H "Authorization: Bearer $ADMIN_KEY"
+```
+
+Rotate a leaked publish token:
+
+```bash
+curl -X POST https://nowplaying.mfc.example/api/channels/modelname/rotate-token \
+  -H "Authorization: Bearer $ADMIN_KEY"
+```
+
+Rotate a model setup token:
+
+```bash
+curl -X POST https://nowplaying.mfc.example/api/channels/modelname/rotate-setup-token \
+  -H "Authorization: Bearer $ADMIN_KEY"
+```
+
+Retire a model:
+
+```bash
+curl -X DELETE https://nowplaying.mfc.example/api/channels/modelname \
+  -H "Authorization: Bearer $ADMIN_KEY"
+```
+
+These lifecycle routes require `ADMIN_KEY`; they do not accept publish or setup tokens.
 
 ### Content And Promo Settings
 
@@ -208,16 +265,37 @@ Manual iframe:
 ## Security Notes
 
 - Do not put publish tokens in model-facing instructions.
+- Treat model setup URLs as lower-privilege secrets. Rotate setup tokens if a setup URL is pasted somewhere public.
 - Do not commit generated channel data from `data/`.
 - Do not publish screenshots that show bridge commands, publish tokens, local account names, or private URLs.
 - Use HTTPS in production.
 - Store `DATA_DIR` on persistent private storage.
-- Rotate publish tokens when a channel is reassigned or suspected to be exposed.
+- Back up `DATA_DIR`; it contains channel records, tokens, settings, and uploaded media.
+- Rotate publish tokens when a bridge token leaks or a channel is reassigned.
+- Delete retired model channels with the admin DELETE endpoint.
+
+### HTTPS And Backups
+
+Run the Node relay behind an HTTPS reverse proxy such as Caddy, nginx, Cloudflare Tunnel, or an MFC-managed edge proxy. A minimal Caddy route looks like:
+
+```caddyfile
+nowplaying.mfc.example {
+  reverse_proxy 127.0.0.1:8080
+}
+```
+
+Back up the data volume regularly:
+
+```bash
+docker run --rm -v mfc-relay_mfc-relay-data:/data -v "$PWD":/backup alpine \
+  tar czf /backup/mfc-relay-data-$(date +%F).tar.gz -C /data .
+```
 
 ## More Documentation
 
 - [MFC pitch](docs/MFC_PITCH.md)
 - [Developer handoff](docs/MFC_DEVELOPER_HANDOFF.md)
+- [Ops runbook](docs/OPS_RUNBOOK.md)
 - [Music source strategy](docs/MUSIC_SOURCES.md)
 - [API reference](docs/API.md)
 - [OpenAPI spec](spec/openapi.yaml)

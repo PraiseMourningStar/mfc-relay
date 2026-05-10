@@ -18,12 +18,12 @@ MFC hosts:
 - persistent `DATA_DIR`
 - HTTPS reverse proxy
 - channel lifecycle around model/room IDs
-- publish token storage and rotation
+- setup-token and publish-token storage and rotation
 
 MFC gives models:
 
 - one public browser-source URL
-- optional customization access through the Model Setup view
+- one Model Setup URL when they should customize their own overlay
 - branded presets, rotating colors, GIF/social/album/ad/notice controls
 
 MFC keeps private:
@@ -32,14 +32,16 @@ MFC keeps private:
 - publish token
 - server logs containing token headers
 
+The Model Setup URL contains a lower-privilege `settings_token`. It can save overlay settings, upload model-facing media, and send a test overlay update. It cannot publish real now-playing data, create/list/delete channels, or rotate tokens.
+
 ## Studio Separation
 
 The studio is split into two handoff surfaces:
 
-- **Model Setup**: live preview, public OBS/MFC browser-source URL, copy button, recommended OBS dimensions, test overlay, and model-facing customization controls.
-- **Developer Setup**: channel creation, publish token, local bridge command, website embed snippet, settings import/export, and API boundary notes.
+- **Model Setup**: live preview, public OBS/MFC browser-source URL, copy button, recommended OBS dimensions, test overlay, and model-facing customization controls backed by the setup token.
+- **Developer Setup**: channel creation, setup token, publish token, local bridge command, website embed snippet, settings import/export, and API boundary notes.
 
-The model-facing view should be the default for operators. The developer view is for MFC staff, integration engineers, or trusted tooling. Do not place the publish token or bridge command in model-facing setup material.
+The model-facing view should be the default for operators. The developer view is for MFC staff, integration engineers, or trusted tooling. Do not place the publish token, admin key, or bridge command in model-facing setup material.
 
 ## Recommended Channel Model
 
@@ -74,10 +76,13 @@ Response includes:
 
 - `id`
 - `publish_token`
+- `settings_token`
 - `urls.overlay`
+- `urls.mfc_browser_source`
+- `urls.model_setup`
 - `urls.embed_js`
 
-Store `publish_token` securely. Do not put it in model-facing HTML.
+Give `urls.model_setup` to a model when they should manage their own style/content controls. Store `publish_token` securely and use it only for MFC-owned systems or trusted bridge processes.
 
 ## Browser Source URL
 
@@ -150,7 +155,16 @@ The same fields are available through:
 
 ```http
 PATCH /api/channels/<channel-id>/settings
-Authorization: Bearer <publish-token>
+Authorization: Bearer <settings-token>
+```
+
+The publish token is also accepted on settings routes for MFC-owned tooling, but it should not be necessary for model-facing setup.
+
+Uploaded ad/media previews use the same setup-token boundary:
+
+```http
+POST /api/channels/<channel-id>/media
+Authorization: Bearer <settings-token>
 ```
 
 ## MFC Content Hooks
@@ -203,9 +217,20 @@ For first-party deployment, MFC can populate `album_items` from the model's newe
 - Set `PUBLIC_BASE_URL` to the public relay origin.
 - Set `ADMIN_KEY` before exposing channel creation publicly.
 - Put `DATA_DIR` on persistent storage.
-- Rotate publish tokens by recreating or updating channels.
-- Treat overlay URLs as public secrets with low risk; treat publish tokens as high risk.
+- Rotate publish tokens with `POST /api/channels/<id>/rotate-token`.
+- Rotate model setup tokens with `POST /api/channels/<id>/rotate-setup-token`.
+- Delete retired model channels with `DELETE /api/channels/<id>`.
+- List channels with `GET /api/channels`; list responses intentionally do not include tokens.
+- Treat overlay URLs as public secrets with low risk, setup URLs as lower-privilege secrets, and publish tokens as high risk.
 - If a model stops publishing, the overlay automatically hides after `stale_after_ms`.
+
+Lifecycle routes require:
+
+```http
+Authorization: Bearer <admin-key>
+```
+
+Use the response from a rotate endpoint exactly once to update the password manager or bridge configuration.
 
 ## MFC Fit
 

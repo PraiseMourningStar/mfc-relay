@@ -1,4 +1,4 @@
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import crypto from "node:crypto";
 import {
@@ -14,8 +14,39 @@ function randomToken(bytes = 24) {
   return crypto.randomBytes(bytes).toString("base64url");
 }
 
+function randomChannelId() {
+  return randomToken(9).toLowerCase();
+}
+
+const CHANNEL_ID_RE = /^[a-z0-9_-]{1,64}$/;
+
 function safeId(value) {
   return String(value || "").toLowerCase().replace(/[^a-z0-9_-]/g, "").slice(0, 64);
+}
+
+function requestedChannelId(input) {
+  if (!Object.hasOwn(input, "id")) {
+    return randomChannelId();
+  }
+
+  const id = String(input.id || "").trim();
+  if (!CHANNEL_ID_RE.test(id)) {
+    const error = new Error("Channel ID must use 1-64 lowercase letters, numbers, underscores, or hyphens");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  return id;
+}
+
+function timingSafeEqualString(expectedValue, actualValue) {
+  if (!expectedValue || !actualValue) {
+    return false;
+  }
+
+  const expected = Buffer.from(String(expectedValue));
+  const actual = Buffer.from(String(actualValue));
+  return expected.length === actual.length && crypto.timingSafeEqual(expected, actual);
 }
 
 const MEDIA_EXT = new Map([
@@ -64,9 +95,11 @@ export class RelayStore {
   }
 
   async createChannel(input = {}) {
+    input = input && typeof input === "object" ? input : {};
     await this.ensure();
-    const channelId = safeId(input.id) || randomToken(9);
+    const channelId = requestedChannelId(input);
     const publishToken = input.publish_token || input.publishToken || randomToken(32);
+    const settingsToken = input.settings_token || input.settingsToken || randomToken(32);
     const settings = {
       ...DEFAULT_SETTINGS,
       ...normalizeSettings(input.settings || input),
@@ -75,6 +108,7 @@ export class RelayStore {
     const record = {
       id: channelId,
       publish_token: publishToken,
+      settings_token: settingsToken,
       created_at: now,
       updated_at: now,
       settings,
@@ -103,6 +137,7 @@ export class RelayStore {
 
     return {
       ...record,
+      settings_token: record.settings_token || "",
       settings: publicSettings(record.settings),
       track: {
         ...DEFAULT_TRACK,
@@ -132,13 +167,11 @@ export class RelayStore {
   }
 
   verifyPublishToken(channel, token) {
-    if (!token || !channel?.publish_token) {
-      return false;
-    }
+    return timingSafeEqualString(channel?.publish_token, token);
+  }
 
-    const expected = Buffer.from(channel.publish_token);
-    const actual = Buffer.from(String(token));
-    return expected.length === actual.length && crypto.timingSafeEqual(expected, actual);
+  verifySettingsToken(channel, token) {
+    return this.verifyPublishToken(channel, token) || timingSafeEqualString(channel?.settings_token, token);
   }
 
   async updateSettings(channelId, settingsPatch) {
@@ -213,6 +246,51 @@ export class RelayStore {
       };
     }
 
+    return this.saveChannel(channel);
+  }
+
+  async listChannels() {
+    await this.ensure();
+    const files = await readdir(this.channelsDir);
+    const channels = [];
+
+    for (const file of files) {
+      if (!file.endsWith(".json")) {
+        continue;
+      }
+
+      const record = await readJSON(path.join(this.channelsDir, file), null);
+      if (!record?.id) {
+        continue;
+      }
+
+      channels.push({
+        id: record.id,
+        display_name: publicSettings(record.settings).display_name,
+        created_at: record.created_at || "",
+        updated_at: record.updated_at || "",
+      });
+    }
+
+    return channels.sort((a, b) => a.id.localeCompare(b.id));
+  }
+
+  async deleteChannel(channelId) {
+    const channel = await this.requireChannel(channelId);
+    await rm(this.channelFile(channel.id), { force: true });
+    await rm(path.join(this.assetsDir, channel.id), { recursive: true, force: true });
+    return { id: channel.id };
+  }
+
+  async rotatePublishToken(channelId) {
+    const channel = await this.requireChannel(channelId);
+    channel.publish_token = randomToken(32);
+    return this.saveChannel(channel);
+  }
+
+  async rotateSettingsToken(channelId) {
+    const channel = await this.requireChannel(channelId);
+    channel.settings_token = randomToken(32);
     return this.saveChannel(channel);
   }
 }
