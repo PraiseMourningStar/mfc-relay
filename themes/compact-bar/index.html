@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MFC Now Playing – Compact Bar</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="overlay" data-source="">
+    <div class="card">
+      <div class="artwork-container">
+        <img class="artwork-img" alt="" />
+        <div class="artwork-fallback">&#9835;</div>
+      </div>
+      <div class="meta">
+        <span class="state-dot"></span>
+        <div class="track-info">
+          <span class="track-title"></span>
+          <span class="title-sep"> &mdash; </span>
+          <span class="track-artist"></span>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill"></div>
+        </div>
+      </div>
+    </div>
+    <!-- Hidden elements for overlay.js compatibility -->
+    <div class="track-album" style="display:none"></div>
+    <div class="source-badge" style="display:none"></div>
+    <div class="artwork-glow" style="display:none"></div>
+    <div class="time-current" style="display:none"></div>
+    <div class="time-duration" style="display:none"></div>
+    <div class="visualizer" style="display:none"><div class="viz-bar"></div></div>
+    <div class="ambient-glow" style="display:none"></div>
+  </div>
+  <script src="overlay.js"></script>
+</body>
+</html>

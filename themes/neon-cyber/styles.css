@@ -1,0 +1,286 @@
+/* MFC Now Playing – Neon Cyber Template */
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap');
+
+:root {
+  --accent: #ff00ff;
+  --accent-alt: #00ffff;
+  --glow-opacity: 0.5;
+  --card-opacity: 0.75;
+  --blur: 12px;
+  --radius: 4px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: transparent;
+  font-family: 'Share Tech Mono', 'Courier New', monospace;
+  overflow: hidden;
+  min-height: 100vh;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-start;
+  padding: 16px;
+}
+
+.overlay {
+  opacity: 0;
+  transform: translateY(20px) scale(0.95);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  position: relative;
+  width: 100%;
+  max-width: 700px;
+}
+
+.overlay.visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.overlay.bump {
+  animation: cyberBump 0.5s ease;
+}
+
+@keyframes cyberBump {
+  0%   { transform: scale(1) skewX(0deg); }
+  25%  { transform: scale(1.02) skewX(-1deg); }
+  50%  { transform: scale(1.01) skewX(0.5deg); }
+  100% { transform: scale(1) skewX(0deg); }
+}
+
+/* Ambient neon glow */
+.ambient-glow {
+  position: absolute;
+  inset: -30px;
+  background:
+    radial-gradient(ellipse at 20% 50%, var(--accent), transparent 60%),
+    radial-gradient(ellipse at 80% 50%, var(--accent-alt), transparent 60%);
+  opacity: var(--glow-opacity);
+  filter: blur(50px);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.card {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 16px;
+  padding: 16px;
+  background: rgba(5, 0, 15, var(--card-opacity));
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  box-shadow:
+    0 0 10px rgba(255, 0, 255, 0.3),
+    0 0 30px rgba(255, 0, 255, 0.1),
+    inset 0 0 20px rgba(255, 0, 255, 0.05);
+  overflow: hidden;
+}
+
+/* Scan line effect */
+.scan-line {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent-alt), transparent);
+  opacity: 0.6;
+  animation: scanLine 3s linear infinite;
+  z-index: 10;
+  pointer-events: none;
+}
+
+@keyframes scanLine {
+  0%   { top: 0; }
+  100% { top: 100%; }
+}
+
+/* Artwork */
+.artwork-container {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  border: 1px solid var(--accent-alt);
+  overflow: hidden;
+  background: rgba(0, 255, 255, 0.03);
+}
+
+.artwork-glow {
+  position: absolute;
+  inset: -40%;
+  background-size: cover;
+  background-position: center;
+  filter: blur(20px) saturate(2) hue-rotate(10deg);
+  opacity: 0.3;
+  z-index: 0;
+}
+
+.artwork-img {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.artwork-fallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40px;
+  color: var(--accent);
+  text-shadow: 0 0 20px var(--accent);
+  z-index: 0;
+}
+
+.artwork-glitch {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 255, 255, 0.03) 2px,
+    rgba(0, 255, 255, 0.03) 4px
+  );
+  pointer-events: none;
+}
+
+/* Metadata */
+.meta {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  min-width: 0;
+  padding: 4px 0;
+}
+
+.meta-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+
+.state-dot {
+  width: 8px;
+  height: 8px;
+  background: var(--accent-alt);
+  box-shadow: 0 0 10px var(--accent-alt);
+  clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+  transition: background 0.3s;
+}
+
+.state-dot.paused {
+  background: #ff6600;
+  box-shadow: 0 0 10px #ff6600;
+}
+
+.source-badge {
+  font-family: 'Orbitron', monospace;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  color: var(--accent-alt);
+  text-shadow: 0 0 8px var(--accent-alt);
+}
+
+.track-title {
+  font-family: 'Orbitron', monospace;
+  font-size: 18px;
+  font-weight: 900;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 0 10px var(--accent), 0 0 30px rgba(255, 0, 255, 0.3);
+  line-height: 1.4;
+}
+
+.track-artist {
+  font-size: 13px;
+  color: var(--accent-alt);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 0 6px var(--accent-alt);
+}
+
+.track-album {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.35);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Progress */
+.progress-bar {
+  width: 100%;
+  height: 2px;
+  background: rgba(255, 0, 255, 0.15);
+  margin-top: 10px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent-alt));
+  transition: width 0.8s linear;
+  box-shadow: 0 0 8px var(--accent), 0 0 16px var(--accent-alt);
+}
+
+/* Timecodes & Visualizer */
+.timecodes {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 4px;
+}
+
+.time-current, .time-duration {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px;
+  color: var(--accent-alt);
+  opacity: 0.7;
+}
+
+.visualizer {
+  display: flex;
+  gap: 2px;
+  align-items: flex-end;
+  height: 18px;
+}
+
+.viz-bar {
+  width: 3px;
+  height: 3px;
+  background: linear-gradient(to top, var(--accent), var(--accent-alt));
+  opacity: 0.2;
+  transition: opacity 0.3s;
+}
+
+.viz-bar.active {
+  opacity: 1;
+  animation: vizPulse 0.5s ease-in-out infinite alternate;
+}
+
+.viz-bar:nth-child(1) { animation-delay: 0.0s; }
+.viz-bar:nth-child(2) { animation-delay: 0.1s; }
+.viz-bar:nth-child(3) { animation-delay: 0.2s; }
+.viz-bar:nth-child(4) { animation-delay: 0.3s; }
+.viz-bar:nth-child(5) { animation-delay: 0.15s; }
+.viz-bar:nth-child(6) { animation-delay: 0.25s; }
+.viz-bar:nth-child(7) { animation-delay: 0.05s; }
+
+@keyframes vizPulse {
+  0%   { height: 3px; }
+  100% { height: 18px; }
+}

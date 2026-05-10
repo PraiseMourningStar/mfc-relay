@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MFC Now Playing – Spotify Dark</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="overlay" data-source="">
+    <div class="card">
+      <div class="artwork-container">
+        <div class="artwork-glow"></div>
+        <img class="artwork-img" alt="" />
+        <div class="artwork-fallback">&#9835;</div>
+      </div>
+      <div class="meta">
+        <div class="meta-top">
+          <span class="state-dot"></span>
+          <span class="source-badge"></span>
+        </div>
+        <div class="track-title"></div>
+        <div class="track-artist"></div>
+        <div class="track-album"></div>
+        <div class="progress-bar">
+          <div class="progress-fill"></div>
+        </div>
+        <div class="timecodes">
+          <span class="time-current">0:00</span>
+          <div class="visualizer">
+            <div class="viz-bar"></div>
+            <div class="viz-bar"></div>
+            <div class="viz-bar"></div>
+            <div class="viz-bar"></div>
+            <div class="viz-bar"></div>
+          </div>
+          <span class="time-duration">0:00</span>
+        </div>
+      </div>
+    </div>
+    <div class="ambient-glow"></div>
+  </div>
+  <script src="overlay.js"></script>
+</body>
+</html>

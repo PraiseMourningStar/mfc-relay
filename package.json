@@ -1,0 +1,15 @@
+{
+  "name": "mfc-now-playing-relay",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Self-hosted music and content overlay relay for MFC browser sources.",
+  "scripts": {
+    "start": "node src/server.mjs",
+    "bridge": "node bin/mfc-nowplaying-bridge.mjs",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

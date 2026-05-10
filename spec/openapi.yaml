@@ -1,0 +1,368 @@
+openapi: 3.1.0
+info:
+  title: MFC Overlay Relay API
+  version: 0.1.0
+servers:
+  - url: https://nowplaying.mfc.example
+paths:
+  /health:
+    get:
+      summary: Health check
+      responses:
+        "200":
+          description: Relay is healthy
+  /api/channels:
+    post:
+      summary: Create a channel
+      security:
+        - adminBearer: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateChannelRequest"
+      responses:
+        "201":
+          description: Channel created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChannelCreateResponse"
+  /api/channels/{channelId}:
+    get:
+      summary: Get public channel metadata
+      parameters:
+        - $ref: "#/components/parameters/channelId"
+      responses:
+        "200":
+          description: Public channel metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicChannel"
+  /api/channels/{channelId}/now-playing:
+    get:
+      summary: Get current track
+      parameters:
+        - $ref: "#/components/parameters/channelId"
+      responses:
+        "200":
+          description: Current track
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Track"
+    post:
+      summary: Publish current track
+      security:
+        - publishBearer: []
+      parameters:
+        - $ref: "#/components/parameters/channelId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PublishTrackRequest"
+      responses:
+        "202":
+          description: Track accepted
+  /api/channels/{channelId}/settings:
+    get:
+      summary: Get public overlay settings
+      parameters:
+        - $ref: "#/components/parameters/channelId"
+      responses:
+        "200":
+          description: Overlay settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Settings"
+    patch:
+      summary: Update overlay settings
+      security:
+        - publishBearer: []
+      parameters:
+        - $ref: "#/components/parameters/channelId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SettingsPatch"
+      responses:
+        "200":
+          description: Updated settings
+  /api/channels/{channelId}/media:
+    post:
+      summary: Upload a local overlay media asset
+      security:
+        - publishBearer: []
+      parameters:
+        - $ref: "#/components/parameters/channelId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MediaUploadRequest"
+      responses:
+        "201":
+          description: Media asset uploaded
+  /overlay/{channelId}:
+    get:
+      summary: Render transparent overlay HTML
+      parameters:
+        - $ref: "#/components/parameters/channelId"
+      responses:
+        "200":
+          description: Overlay HTML
+          content:
+            text/html:
+              schema:
+                type: string
+components:
+  securitySchemes:
+    adminBearer:
+      type: http
+      scheme: bearer
+    publishBearer:
+      type: http
+      scheme: bearer
+  parameters:
+    channelId:
+      name: channelId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: "^[a-z0-9_-]{1,64}$"
+  schemas:
+    CreateChannelRequest:
+      type: object
+      properties:
+        id:
+          type: string
+        display_name:
+          type: string
+        settings:
+          $ref: "#/components/schemas/SettingsPatch"
+    ChannelCreateResponse:
+      allOf:
+        - $ref: "#/components/schemas/PublicChannel"
+        - type: object
+          properties:
+            publish_token:
+              type: string
+    PublicChannel:
+      type: object
+      properties:
+        id:
+          type: string
+        settings:
+          $ref: "#/components/schemas/Settings"
+        urls:
+          type: object
+          additionalProperties:
+            type: string
+    PublishTrackRequest:
+      type: object
+      properties:
+        track:
+          $ref: "#/components/schemas/Track"
+        artwork:
+          $ref: "#/components/schemas/Artwork"
+        settings:
+          $ref: "#/components/schemas/SettingsPatch"
+        clear_artwork:
+          type: boolean
+    Track:
+      type: object
+      required:
+        - available
+        - state
+      properties:
+        available:
+          type: boolean
+        state:
+          type: string
+          enum: [playing, paused, stopped]
+        source:
+          type: string
+        title:
+          type: string
+        artist:
+          type: string
+        album:
+          type: string
+        duration_ms:
+          type: integer
+          minimum: 0
+        position_ms:
+          type: integer
+          minimum: 0
+        artwork_url:
+          type: string
+        updated_at:
+          type: number
+    Artwork:
+      type: object
+      properties:
+        mime_type:
+          type: string
+          enum: [image/jpeg, image/png, image/gif, image/webp]
+        data_base64:
+          type: string
+    Settings:
+      type: object
+      properties:
+        display_name:
+          type: string
+        template:
+          type: string
+          enum: [glassmorphic, compact-bar, minimal-clean, neon-cyber, spotify-dark]
+        preset:
+          type: string
+          enum: [glass-pop, bubblegum, after-dark, cyber-candy, clean-luxe]
+        accent_hex:
+          type: string
+          pattern: "^#[0-9a-fA-F]{6}$"
+        accent_palette:
+          type: array
+          maxItems: 8
+          items:
+            type: string
+            pattern: "^#[0-9a-fA-F]{6}$"
+        color_mode:
+          type: string
+          enum: [solid, rotating]
+        color_rotate_ms:
+          type: integer
+          minimum: 1000
+          maximum: 30000
+        glow_opacity:
+          type: number
+        card_opacity:
+          type: number
+        blur_radius:
+          type: integer
+        corner_radius:
+          type: integer
+        scale:
+          type: number
+        width_px:
+          type: integer
+        anchor:
+          type: string
+          enum: [top-left, top-center, top-right, center-left, center, center-right, bottom-left, bottom-center, bottom-right]
+        offset_x_px:
+          type: integer
+        offset_y_px:
+          type: integer
+        show_paused:
+          type: boolean
+        stale_after_ms:
+          type: integer
+        custom_gif_enabled:
+          type: boolean
+        custom_gif_url:
+          type: string
+        social_rotation_enabled:
+          type: boolean
+        social_items:
+          type: array
+          maxItems: 12
+          items:
+            $ref: "#/components/schemas/SocialItem"
+        album_rotation_enabled:
+          type: boolean
+        album_items:
+          type: array
+          maxItems: 12
+          items:
+            $ref: "#/components/schemas/AlbumItem"
+        notice_enabled:
+          type: boolean
+        notice_items:
+          type: array
+          maxItems: 8
+          items:
+            $ref: "#/components/schemas/NoticeItem"
+        ad_rotation_enabled:
+          type: boolean
+        ad_items:
+          type: array
+          maxItems: 12
+          items:
+            $ref: "#/components/schemas/AdItem"
+        tile_rotate_ms:
+          type: integer
+          minimum: 2000
+          maximum: 60000
+        tile_rotation_order:
+          type: array
+          items:
+            type: string
+            enum: [social, album, ad, notice, now-playing]
+        tile_size:
+          type: string
+          enum: [compact, large]
+    SettingsPatch:
+      allOf:
+        - $ref: "#/components/schemas/Settings"
+    SocialItem:
+      type: object
+      properties:
+        label:
+          type: string
+        value:
+          type: string
+        url:
+          type: string
+        image_url:
+          type: string
+    AlbumItem:
+      type: object
+      properties:
+        title:
+          type: string
+        caption:
+          type: string
+        image_url:
+          type: string
+        url:
+          type: string
+        published_at:
+          type: string
+    NoticeItem:
+      type: object
+      properties:
+        message:
+          type: string
+        variant:
+          type: string
+          enum: [tip, promo, soft, hot]
+    AdItem:
+      type: object
+      properties:
+        title:
+          type: string
+        caption:
+          type: string
+        media_url:
+          type: string
+        media_type:
+          type: string
+          enum: [image, video]
+        url:
+          type: string
+    MediaUploadRequest:
+      type: object
+      properties:
+        mime_type:
+          type: string
+          enum: [image/jpeg, image/png, image/gif, image/webp, video/mp4, video/webm, video/quicktime]
+        data_base64:
+          type: string

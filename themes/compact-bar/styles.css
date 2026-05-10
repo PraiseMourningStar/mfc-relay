@@ -1,0 +1,152 @@
+/* MFC Now Playing – Compact Bar Template
+   Ultra-slim single-line bar for minimal screen real estate */
+:root {
+  --accent: #8b5cf6;
+  --glow-opacity: 0;
+  --card-opacity: 0.8;
+  --blur: 14px;
+  --radius: 24px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: transparent;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
+  overflow: hidden;
+  min-height: 100vh;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-start;
+  padding: 12px;
+}
+
+.overlay {
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.35s ease, transform 0.35s ease;
+  position: relative;
+  width: 100%;
+  max-width: 480px;
+}
+
+.overlay.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.overlay.bump {
+  animation: bump 0.3s ease;
+}
+
+@keyframes bump {
+  0%   { transform: scale(1); }
+  50%  { transform: scale(1.01); }
+  100% { transform: scale(1); }
+}
+
+.card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 16px 6px 6px;
+  background: rgba(12, 12, 12, var(--card-opacity));
+  backdrop-filter: blur(var(--blur));
+  -webkit-backdrop-filter: blur(var(--blur));
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Artwork – small circle */
+.artwork-container {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
+  position: relative;
+}
+
+.artwork-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.artwork-fallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.2);
+}
+
+/* Metadata – single line */
+.meta {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  position: relative;
+}
+
+.state-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #22c55e;
+  flex-shrink: 0;
+  transition: background 0.3s;
+}
+
+.state-dot.paused {
+  background: #eab308;
+}
+
+.track-info {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 13px;
+  line-height: 1;
+}
+
+.track-title {
+  font-weight: 600;
+  color: #fff;
+}
+
+.title-sep {
+  color: rgba(255, 255, 255, 0.3);
+  margin: 0 2px;
+}
+
+.track-artist {
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+/* Thin progress bar at bottom of card */
+.progress-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.8s linear;
+}

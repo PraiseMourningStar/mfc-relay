@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MFC Now Playing Relay</title>
+  <link rel="stylesheet" href="/studio.css?v=2">
+</head>
+<body>
+  <main class="shell">
+    <section class="topbar">
+      <div>
+        <p class="eyebrow">MFC Now Playing Relay</p>
+        <h1>MFC Overlay Studio</h1>
+      </div>
+      <div class="topbar-actions">
+        <span id="status" role="status"></span>
+        <div class="mode-switch" role="tablist" aria-label="Studio mode">
+          <button class="mode-button active" type="button" data-mode="model">Model Setup</button>
+          <button class="mode-button" type="button" data-mode="developer">Developer Setup</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="mode-view active" data-mode-view="model">
+      <section class="model-workspace">
+        <section class="preview-stack">
+          <section class="panel obs-panel">
+            <div class="panel-heading">
+              <div>
+                <h2>OBS Browser Source</h2>
+                <p class="panel-note">This is the model/operator copy-paste surface. It only contains the public overlay URL.</p>
+              </div>
+              <span id="modelChannelLabel" class="channel-pill">No channel loaded</span>
+            </div>
+            <label class="copy-field">
+              Browser-source URL
+              <div class="copy-control">
+                <input id="overlayUrl" type="text" readonly>
+                <button id="copyOverlay" type="button">Copy OBS URL</button>
+              </div>
+            </label>
+            <div class="obs-meta">
+              <span>Width 800</span>
+              <span>Height 220</span>
+              <span>Transparent background</span>
+            </div>
+            <div class="button-row">
+              <button id="testTrack" type="button" class="ghost">Test Overlay</button>
+            </div>
+          </section>
+
+          <section class="panel preview-panel">
+            <h2>Live Preview</h2>
+            <iframe id="preview" title="MFC now-playing overlay preview"></iframe>
+          </section>
+        </section>
+
+      <section class="panel controls-panel">
+        <div class="panel-heading">
+          <div>
+            <h2>Customize</h2>
+            <p class="panel-note">The model-facing controls stay here. Private tokens and bridge setup live in Developer Setup.</p>
+          </div>
+          <button id="saveSettings" type="button">Save Settings</button>
+        </div>
+        <div class="tabs" role="tablist">
+          <button class="tab-button active" type="button" data-tab="style">Style</button>
+          <button class="tab-button" type="button" data-tab="content">Content</button>
+          <button class="tab-button" type="button" data-tab="timing">Timing</button>
+          <button class="tab-button" type="button" data-tab="media">Media</button>
+        </div>
+
+        <div class="tab-panel active" data-tab-panel="style">
+          <div class="controls-grid">
+            <label>
+              Display Name
+              <input id="displayName" type="text">
+            </label>
+            <label>
+              Template
+              <select id="template">
+                <option value="glassmorphic">Glassmorphic</option>
+                <option value="compact-bar">Compact Bar</option>
+                <option value="minimal-clean">Minimal Clean</option>
+                <option value="neon-cyber">Neon Cyber</option>
+                <option value="spotify-dark">Spotify Dark</option>
+              </select>
+            </label>
+            <label>
+              Preset
+              <select id="preset">
+                <option value="glass-pop">Glass Pop</option>
+                <option value="bubblegum">Bubblegum</option>
+                <option value="after-dark">After Dark</option>
+                <option value="cyber-candy">Cyber Candy</option>
+                <option value="clean-luxe">Clean Luxe</option>
+              </select>
+            </label>
+            <label>
+              Accent
+              <input id="accent" type="color">
+            </label>
+            <label>
+              Color Mode
+              <select id="colorMode">
+                <option value="solid">Solid</option>
+                <option value="rotating">Rotating</option>
+              </select>
+            </label>
+            <label class="wide-control">
+              Palette
+              <input id="palette" type="text" spellcheck="false">
+            </label>
+            <label>
+              Anchor
+              <select id="anchor">
+                <option value="bottom-left">Bottom Left</option>
+                <option value="bottom-center">Bottom Center</option>
+                <option value="bottom-right">Bottom Right</option>
+                <option value="center-left">Center Left</option>
+                <option value="center">Center</option>
+                <option value="center-right">Center Right</option>
+                <option value="top-left">Top Left</option>
+                <option value="top-center">Top Center</option>
+                <option value="top-right">Top Right</option>
+              </select>
+            </label>
+            <label>
+              Width
+              <input id="width" type="range" min="220" max="1200" step="10">
+            </label>
+            <label>
+              Scale
+              <input id="scale" type="range" min="0.5" max="2" step="0.05">
+            </label>
+            <label>
+              Glow
+              <input id="glow" type="range" min="0" max="1" step="0.01">
+            </label>
+            <label>
+              Card Opacity
+              <input id="card" type="range" min="0" max="1" step="0.01">
+            </label>
+            <label>
+              Blur
+              <input id="blur" type="range" min="0" max="48" step="1">
+            </label>
+            <label>
+              Radius
+              <input id="radius" type="range" min="0" max="36" step="1">
+            </label>
+            <label>
+              X Offset
+              <input id="offsetX" type="range" min="0" max="200" step="1">
+            </label>
+            <label>
+              Y Offset
+              <input id="offsetY" type="range" min="0" max="200" step="1">
+            </label>
+          </div>
+          <label class="toggle">
+            <input id="showPaused" type="checkbox">
+            Show paused tracks
+          </label>
+        </div>
+
+        <div class="tab-panel" data-tab-panel="content">
+          <section class="content-section content-section-primary">
+            <h3 class="section-title">Promo Layout</h3>
+            <label>
+              Rotation Size
+              <select id="tileSize">
+                <option value="compact">Small promo strip under music</option>
+                <option value="large">Full-size cards with music in the rotation</option>
+              </select>
+            </label>
+          </section>
+
+          <section class="content-section">
+            <div class="section-head">
+              <label class="toggle">
+                <input id="customGifEnabled" type="checkbox">
+                Show custom GIF badge
+              </label>
+            </div>
+            <label>
+              GIF URL
+              <input id="customGifUrl" type="url" spellcheck="false" placeholder="https://...gif">
+            </label>
+          </section>
+
+          <section class="content-section">
+            <div class="section-head">
+              <label class="toggle">
+                <input id="socialRotationEnabled" type="checkbox">
+                Social links
+              </label>
+              <button id="addSocial" type="button" class="ghost mini">+ Social</button>
+            </div>
+            <div id="socialList" class="row-list" data-empty="No social links yet."></div>
+          </section>
+
+          <section class="content-section">
+            <div class="section-head">
+              <label class="toggle">
+                <input id="albumRotationEnabled" type="checkbox">
+                MFC Share albums
+              </label>
+              <button id="addAlbum" type="button" class="ghost mini">+ Album</button>
+            </div>
+            <div id="albumList" class="row-list" data-empty="No albums yet."></div>
+          </section>
+
+          <section class="content-section">
+            <div class="section-head">
+              <label class="toggle">
+                <input id="noticeEnabled" type="checkbox">
+                Notices
+              </label>
+              <button id="addNotice" type="button" class="ghost mini">+ Notice</button>
+            </div>
+            <div id="noticeList" class="row-list" data-empty="No notices yet."></div>
+          </section>
+        </div>
+
+        <div class="tab-panel" data-tab-panel="timing">
+          <p class="hint">All promos share one rotation. In full-size mode, the now-playing card joins that same rotation.</p>
+          <div class="controls-grid">
+            <label>
+              Tile Speed
+              <input id="tileRotate" type="range" min="2000" max="60000" step="500">
+            </label>
+            <label>
+              Color Speed
+              <input id="colorRotate" type="range" min="1000" max="30000" step="500">
+            </label>
+            <label>
+              Track Hold
+              <input id="staleAfter" type="range" min="15000" max="300000" step="5000">
+            </label>
+          </div>
+        </div>
+
+        <div class="tab-panel" data-tab-panel="media">
+          <section class="content-section">
+            <div class="section-head">
+              <label class="toggle">
+                <input id="adRotationEnabled" type="checkbox">
+                Ad previews
+              </label>
+              <button id="addAd" type="button" class="ghost mini">+ Add</button>
+            </div>
+            <div id="adList" class="row-list" data-empty="No ad previews yet."></div>
+          </section>
+
+          <section class="content-section">
+            <h3 class="section-title">Quick upload</h3>
+            <p class="hint">Upload a local image or video and it'll be added to the ad list automatically.</p>
+            <label>
+              File
+              <input id="adUpload" type="file" accept="image/*,video/mp4,video/webm,video/quicktime">
+            </label>
+            <div class="controls-grid">
+              <label>
+                Title
+                <input id="adUploadTitle" type="text" placeholder="Tonight's special">
+              </label>
+              <label>
+                Caption
+                <input id="adUploadCaption" type="text" placeholder="Optional caption">
+              </label>
+            </div>
+            <button id="uploadAd" type="button" class="ghost">Upload Ad Preview</button>
+          </section>
+        </div>
+      </section>
+      </section>
+    </section>
+
+    <section class="mode-view" data-mode-view="developer">
+      <section class="developer-workspace">
+        <section class="panel setup-panel">
+          <div class="panel-heading">
+            <div>
+              <h2>Channel Admin</h2>
+              <p class="panel-note">Private setup for MFC staff or trusted tooling. Keep the publish token out of model-facing instructions.</p>
+            </div>
+            <button id="createChannel" type="button">New Channel</button>
+          </div>
+          <label>
+            Channel ID
+            <input id="channelId" type="text" autocomplete="off" spellcheck="false">
+          </label>
+          <label>
+            Publish Token
+            <input id="publishToken" type="password" autocomplete="off" spellcheck="false">
+          </label>
+          <div class="button-row">
+            <button id="loadChannel" type="button">Load Channel</button>
+          </div>
+        </section>
+
+        <section class="panel setup-panel">
+          <h2>Developer Wiring</h2>
+          <p class="hint">Use this private command for a local now-playing bridge. Do not paste it into OBS or model-facing docs.</p>
+          <pre id="bridgeCommand"></pre>
+          <button id="copyBridge" type="button">Copy Bridge Command</button>
+
+          <h2>Website Embed</h2>
+          <label>
+            Script snippet
+            <textarea id="embedSnippet" readonly rows="5"></textarea>
+          </label>
+        </section>
+
+        <section class="panel setup-panel">
+          <h2>Settings File</h2>
+          <p class="hint">Export a reusable model preset, or import one and then save it to the loaded channel.</p>
+          <div class="button-row">
+            <button id="exportSettings" type="button" class="ghost">Export Preset</button>
+            <button id="importSettingsButton" type="button" class="ghost">Import Preset</button>
+            <input id="importSettingsFile" type="file" accept=".json,application/json" hidden>
+          </div>
+
+          <h2>API Boundary</h2>
+          <ul class="dev-list">
+            <li>OBS URL is public and safe for model setup.</li>
+            <li>Publish token stays private and only powers settings, media, and now-playing updates.</li>
+            <li>Production channel creation should sit behind MFC admin auth.</li>
+          </ul>
+        </section>
+      </section>
+    </section>
+  </main>
+
+  <script src="/studio.js?v=2"></script>
+</body>
+</html>
